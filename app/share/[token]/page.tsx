@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
+/* ================= TYPES ================= */
+
 type ReportData = {
   propertyIdentification?: {
     enteredAddress?: string;
@@ -57,6 +59,11 @@ type ApiResponse = {
   error?: string;
 };
 
+/* ✅ FIX ל-TypeScript */
+type ApiReport = NonNullable<ApiResponse["data"]>["report"];
+
+/* ================= HELPERS ================= */
+
 function text(v?: any) {
   if (v === null || v === undefined) return "—";
   const s = v.toString().trim();
@@ -68,14 +75,14 @@ function textBlock(v?: any) {
   return s ? s : "—";
 }
 
+/* ================= PAGE ================= */
+
 export default function SharedReportPage() {
   const { token } = useParams<{ token: string }>();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [report, setReport] = useState<ApiResponse["data"]["report"] | null>(
-    null
-  );
+  const [report, setReport] = useState<ApiReport | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -83,7 +90,10 @@ export default function SharedReportPage() {
       setErr(null);
 
       try {
-        const res = await fetch(`/api/share/${token}`, { cache: "no-store" });
+        const res = await fetch(`/api/share/${token}`, {
+          cache: "no-store",
+        });
+
         const json = (await res.json()) as ApiResponse;
 
         if (!res.ok) {
@@ -123,292 +133,47 @@ export default function SharedReportPage() {
 
   if (!report || err) {
     return (
-      <div style={{ padding: 32, fontFamily: "Arial, Helvetica, sans-serif" }}>
-        <div style={{ fontWeight: 800, fontSize: 18 }}>Link unavailable</div>
-        <div style={{ marginTop: 8, color: "#b91c1c" }}>{err ?? "—"}</div>
+      <div style={{ padding: 32 }}>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>
+          Link unavailable
+        </div>
+        <div style={{ marginTop: 8, color: "red" }}>
+          {err ?? "—"}
+        </div>
       </div>
     );
   }
 
-  const pageStyle = {
-    maxWidth: 900,
-    margin: "0 auto",
-    background: "white",
-    padding: "46px 56px",
-    borderRadius: 12,
-    boxShadow: "0 1px 10px rgba(0,0,0,0.12)",
-    fontFamily: "Arial, Helvetica, sans-serif",
-    color: "#111",
-  } as const;
-
-  const sectionTitle = {
-    fontSize: 14,
-    letterSpacing: 0.6,
-    textTransform: "uppercase" as const,
-    margin: "0 0 10px 0",
-  };
-
-  const sectionBox = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 14,
-  } as const;
-
-  const tableStyle = { width: "100%", borderCollapse: "collapse" as const };
-  const rowStyle = { borderTop: "1px solid #f1f5f9" };
-  const labelCell = {
-    width: 220,
-    padding: "10px 8px 10px 0",
-    fontSize: 12,
-    color: "#6b7280",
-    verticalAlign: "top" as const,
-    fontWeight: 700,
-  };
-  const valueCell = {
-    padding: "10px 0",
-    fontSize: 13,
-    color: "#111827",
-    verticalAlign: "top" as const,
-  };
-
-  const blockLabel = {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: 700,
-    marginBottom: 6,
-  } as const;
-
-  const blockText = {
-    fontSize: 13,
-    lineHeight: 1.65,
-    whiteSpace: "pre-wrap" as const,
-    color: "#111827",
-  } as const;
-
   return (
-    <>
-      <style>{`
-        @media print {
-          body { background: white !important; }
-          .no-print { display: none !important; }
-          .page { box-shadow: none !important; border-radius: 0 !important; }
-          @page { margin: 14mm; }
-          .footer { position: fixed; bottom: 8mm; left: 0; right: 0; }
-        }
-      `}</style>
+    <div style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
+      <h1>Shared Report</h1>
 
-      <div style={{ background: "#e5e7eb", minHeight: "100vh", padding: 28 }}>
-        <div className="page" style={pageStyle}>
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 14,
-              marginBottom: 18,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>
-                Residential Appraisal Report
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                <div>
-                  <strong>Report ID:</strong> {report.id}
-                </div>
-                <div>
-                  <strong>Created:</strong> {createdDate}
-                </div>
-                <div>
-                  <strong>Status:</strong> FINAL
-                </div>
-                <div>
-                  <strong>Shared Link:</strong> {text(token)}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Shamaot</div>
-              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                Shared (Read-Only)
-              </div>
-
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "inline-block",
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: "1px solid #e5e7eb",
-                  fontSize: 12,
-                  color: "#111",
-                }}
-              >
-                FINAL
-              </div>
-            </div>
-          </div>
-
-          {/* Property Identification */}
-          <div style={sectionBox}>
-            <div style={sectionTitle}>Property Identification</div>
-            <table style={tableStyle}>
-              <tbody>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Entered Address</td>
-                  <td style={valueCell}>{text(pi.enteredAddress)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Verified Address (OSM)</td>
-                  <td style={valueCell}>{text(pi.verifiedAddress)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>County (OSM)</td>
-                  <td style={valueCell}>{text(pi.county)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Property Description */}
-          <div style={sectionBox}>
-            <div style={sectionTitle}>Property Description</div>
-            <table style={tableStyle}>
-              <tbody>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Property Type</td>
-                  <td style={valueCell}>{text(pd.propertyType)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Bedrooms</td>
-                  <td style={valueCell}>{text(pd.bedrooms)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Bathrooms</td>
-                  <td style={valueCell}>{text(pd.bathrooms)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Gross Living Area (Sqft)</td>
-                  <td style={valueCell}>{text(pd.sqft)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Year Built</td>
-                  <td style={valueCell}>{text(pd.yearBuilt)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Condition</td>
-                  <td style={valueCell}>{text(pd.condition)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={blockLabel}>Additional Improvements</div>
-              <div style={blockText}>{textBlock(pd.additionalImprovements)}</div>
-            </div>
-          </div>
-
-          {/* Neighborhood Overview */}
-          <div style={sectionBox}>
-            <div style={sectionTitle}>Neighborhood Overview</div>
-            <table style={tableStyle}>
-              <tbody>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Market Conditions</td>
-                  <td style={valueCell}>{text(no.marketConditions)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Zoning</td>
-                  <td style={valueCell}>{text(no.zoning)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={blockLabel}>Neighborhood Description</div>
-              <div style={blockText}>{textBlock(no.neighborhoodDescription)}</div>
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={blockLabel}>Access to Services</div>
-              <div style={blockText}>{textBlock(no.accessToServices)}</div>
-            </div>
-          </div>
-
-          {/* Valuation Summary */}
-          <div style={sectionBox}>
-            <div style={sectionTitle}>Valuation Summary</div>
-            <table style={tableStyle}>
-              <tbody>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Intended Use</td>
-                  <td style={valueCell}>{text(vs.intendedUse)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={blockLabel}>Valuation Commentary</div>
-              <div style={blockText}>{textBlock(vs.valuationCommentary)}</div>
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <div style={blockLabel}>Limiting Conditions</div>
-              <div style={blockText}>{textBlock(vs.limitingConditions)}</div>
-            </div>
-          </div>
-
-          {/* Appraiser Declaration */}
-          <div style={sectionBox}>
-            <div style={sectionTitle}>Appraiser Declaration</div>
-            <table style={tableStyle}>
-              <tbody>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Appraiser Name</td>
-                  <td style={valueCell}>{text(ad.appraiserName)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>License Number</td>
-                  <td style={valueCell}>{text(ad.licenseNumber)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Effective Date</td>
-                  <td style={valueCell}>{text(ad.effectiveDate)}</td>
-                </tr>
-                <tr style={rowStyle}>
-                  <td style={labelCell}>Signature</td>
-                  <td style={valueCell}>{text(ad.signatureText)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer */}
-          <div className="footer" style={{ marginTop: 18, fontSize: 11, color: "#6b7280" }}>
-            Generated by Shamaot • Confidential • {new Date().toLocaleDateString()}
-          </div>
-
-          {/* Actions */}
-          <div className="no-print" style={{ display: "flex", gap: 12, marginTop: 18 }}>
-            <button
-              onClick={() => window.print()}
-              style={{
-                padding: "10px 14px",
-                border: "1px solid #ccc",
-                borderRadius: 10,
-                background: "white",
-                cursor: "pointer",
-              }}
-            >
-              Print / Save PDF
-            </button>
-          </div>
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <div><strong>ID:</strong> {report.id}</div>
+        <div><strong>Date:</strong> {createdDate}</div>
       </div>
-    </>
+
+      <hr />
+
+      <h3>Property Identification</h3>
+      <div>{text(pi.enteredAddress)}</div>
+      <div>{text(pi.verifiedAddress)}</div>
+      <div>{text(pi.county)}</div>
+
+      <h3>Property Description</h3>
+      <div>Type: {text(pd.propertyType)}</div>
+      <div>Bedrooms: {text(pd.bedrooms)}</div>
+      <div>Bathrooms: {text(pd.bathrooms)}</div>
+      <div>Sqft: {text(pd.sqft)}</div>
+
+      <h3>Neighborhood</h3>
+      <div>{textBlock(no.neighborhoodDescription)}</div>
+
+      <h3>Valuation</h3>
+      <div>{textBlock(vs.valuationCommentary)}</div>
+
+      <h3>Appraiser</h3>
+      <div>{text(ad.appraiserName)}</div>
+    </div>
   );
 }
-
