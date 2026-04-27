@@ -8,12 +8,64 @@ type Body = {
   city?: string;
   state?: string;
   zip?: string;
+  propertyType?: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  sqft?: number | null;
 };
+
+function num(v: any): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pickEstimate(json: any): number | null {
+  return (
+    num(json?.price) ??
+    num(json?.value) ??
+    num(json?.estimate) ??
+    num(json?.estimatedValue) ??
+    num(json?.valuation) ??
+    num(json?.avm?.value) ??
+    num(json?.avm?.estimate) ??
+    num(json?.data?.price) ??
+    num(json?.data?.value) ??
+    num(json?.data?.estimate) ??
+    null
+  );
+}
+
+function pickLow(json: any): number | null {
+  return (
+    num(json?.priceRangeLow) ??
+    num(json?.rangeLow) ??
+    num(json?.low) ??
+    num(json?.valueLow) ??
+    num(json?.avm?.low) ??
+    num(json?.data?.low) ??
+    null
+  );
+}
+
+function pickHigh(json: any): number | null {
+  return (
+    num(json?.priceRangeHigh) ??
+    num(json?.rangeHigh) ??
+    num(json?.high) ??
+    num(json?.valueHigh) ??
+    num(json?.avm?.high) ??
+    num(json?.data?.high) ??
+    null
+  );
+}
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
-    const address = [body.address, body.city, body.state, body.zip].filter(Boolean).join(", ").trim();
+    const address = [body.address, body.city, body.state, body.zip]
+      .filter(Boolean)
+      .join(", ")
+      .trim();
 
     if (!address) {
       return NextResponse.json({ error: "Address is required." }, { status: 400 });
@@ -23,19 +75,25 @@ export async function POST(req: Request) {
     if (!apiKey) {
       return NextResponse.json({
         data: {
-          source: "not-configured",
-          message: "RENTCAST_API_KEY is not configured yet.",
+          source: "rentcast-not-configured",
+          message: "RENTCAST_API_KEY is not configured in Vercel.",
           address,
           estimate: null,
           low: null,
           high: null,
+          checkedAt: new Date().toISOString(),
+          raw: null,
         },
       });
     }
 
-    const url =
-      "https://api.rentcast.io/v1/value-estimate?" +
-      new URLSearchParams({ address }).toString();
+    const params = new URLSearchParams({ address });
+    if (body.propertyType) params.set("propertyType", body.propertyType);
+    if (body.bedrooms != null) params.set("bedrooms", String(body.bedrooms));
+    if (body.bathrooms != null) params.set("bathrooms", String(body.bathrooms));
+    if (body.sqft != null) params.set("squareFootage", String(body.sqft));
+
+    const url = `https://api.rentcast.io/v1/avm/value?${params.toString()}`;
 
     const res = await fetch(url, {
       method: "GET",
@@ -52,20 +110,33 @@ export async function POST(req: Request) {
       return NextResponse.json({
         data: {
           source: "rentcast",
-          message: "External lookup failed. Check API key, plan, or address formatting.",
+          message: `RentCast lookup returned status ${res.status}. Check address, API key permissions, or plan access.`,
           status: res.status,
+          address,
+          estimate: null,
+          low: null,
+          high: null,
+          checkedAt: new Date().toISOString(),
           raw: json,
         },
       });
     }
 
+    const estimate = pickEstimate(json);
+    const low = pickLow(json);
+    const high = pickHigh(json);
+
     return NextResponse.json({
       data: {
         source: "rentcast",
+        message: estimate
+          ? "RentCast external market estimate saved and displayed."
+          : "RentCast responded, but no numeric estimate was found for this address.",
         address,
-        estimate: json?.price ?? json?.value ?? json?.estimate ?? null,
-        low: json?.priceRangeLow ?? json?.low ?? null,
-        high: json?.priceRangeHigh ?? json?.high ?? null,
+        estimate,
+        low,
+        high,
+        checkedAt: new Date().toISOString(),
         raw: json,
       },
     });

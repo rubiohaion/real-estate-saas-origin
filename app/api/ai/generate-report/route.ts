@@ -21,13 +21,15 @@ function fallbackText(body: Payload) {
   const beds = pd.bedrooms ? `${pd.bedrooms} bedrooms` : "the reported bedroom count";
   const baths = pd.bathrooms ? `${pd.bathrooms} bathrooms` : "the reported bathroom count";
   const condition = pd.condition || "the reported condition";
-  const estimate = vs.estimatedValue ? `$${Number(vs.estimatedValue).toLocaleString()}` : "the calculated preliminary value";
+  const mvpEstimate = vs.estimatedValue ? `$${Number(vs.estimatedValue).toLocaleString()}` : "the calculated preliminary value";
+  const externalEstimate = vs.externalEstimate ? `$${Number(vs.externalEstimate).toLocaleString()}` : null;
+  const estimate = externalEstimate ? `${mvpEstimate}, with an external market indication of ${externalEstimate}` : mvpEstimate;
 
   return {
     neighborhoodDescription:
       `The subject property is located at ${address || "the stated address"}. The neighborhood should be analyzed based on proximity to employment centers, schools, transportation routes, commercial services, and typical residential appeal. Marketability should be supported by local comparable sales and verified market activity before final reliance.`,
     valuationCommentary:
-      `Based on the available property inputs, the subject is described as a property with ${sqft}, ${beds}, ${baths}, and ${condition}. The preliminary MVP valuation indication is ${estimate}. This indication should be treated as a starting point only and should be reconciled with verified comparable sales, condition adjustments, location factors, and any appraiser-specific assumptions before a final opinion of value is issued.`,
+      `Based on the available property inputs, the subject is described as a property with ${sqft}, ${beds}, ${baths}, and ${condition}. The preliminary valuation indication is ${estimate}. This indication should be treated as a starting point only and should be reconciled with verified comparable sales, condition adjustments, location factors, and any appraiser-specific assumptions before a final opinion of value is issued.`,
     limitingConditions:
       `This AI-assisted narrative is for draft support only. It does not replace appraiser judgment, independent verification, market-supported comparable analysis, or compliance review. The final report should be reviewed and approved by the responsible appraiser.`,
   };
