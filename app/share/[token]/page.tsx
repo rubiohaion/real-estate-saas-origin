@@ -108,7 +108,7 @@ export default function SharedReportPage() {
           </div>
 
           <div style={sectionBox}><div style={sectionTitle}>Valuation Summary</div><table style={tableStyle}><tbody>
-            <tr style={rowStyle}><td style={labelCell}>MVP Estimate</td><td style={valueCell}>{money(vs.estimatedValue)}</td></tr>
+            <tr style={rowStyle}><td style={labelCell}>Internal Estimate</td><td style={valueCell}>{money(vs.estimatedValue)}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>Estimated Range</td><td style={valueCell}>{vs.estimatedLow ? `${money(vs.estimatedLow)} - ${money(vs.estimatedHigh)}` : "—"}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>Price per Sqft</td><td style={valueCell}>{vs.pricePerSqft ? `$${vs.pricePerSqft}` : "—"}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>External Estimate</td><td style={valueCell}>{money(vs.externalEstimate)}</td></tr>

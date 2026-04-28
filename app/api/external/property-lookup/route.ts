@@ -59,6 +59,22 @@ function pickHigh(json: any): number | null {
   );
 }
 
+function unavailable(message: string, address: string, status?: number, raw?: any) {
+  return NextResponse.json({
+    data: {
+      source: "external-unavailable",
+      message,
+      status: status ?? null,
+      address,
+      estimate: null,
+      low: null,
+      high: null,
+      checkedAt: new Date().toISOString(),
+      raw: raw ?? null,
+    },
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
@@ -73,18 +89,7 @@ export async function POST(req: Request) {
 
     const apiKey = process.env.RENTCAST_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({
-        data: {
-          source: "rentcast-not-configured",
-          message: "RENTCAST_API_KEY is not configured in Vercel.",
-          address,
-          estimate: null,
-          low: null,
-          high: null,
-          checkedAt: new Date().toISOString(),
-          raw: null,
-        },
-      });
+      return unavailable("External data unavailable: RENTCAST_API_KEY is not configured. Using Internal Valuation instead.", address);
     }
 
     const params = new URLSearchParams({ address });
@@ -107,31 +112,25 @@ export async function POST(req: Request) {
     const json = await res.json().catch(() => null);
 
     if (!res.ok) {
-      return NextResponse.json({
-        data: {
-          source: "rentcast",
-          message: `RentCast lookup returned status ${res.status}. Check address, API key permissions, or plan access.`,
-          status: res.status,
-          address,
-          estimate: null,
-          low: null,
-          high: null,
-          checkedAt: new Date().toISOString(),
-          raw: json,
-        },
-      });
+      const msg =
+        res.status === 401 || res.status === 403
+          ? "External data unavailable: RentCast key/plan does not currently allow AVM access. Using Internal Valuation instead."
+          : `External data unavailable: RentCast returned status ${res.status}. Using Internal Valuation instead.`;
+      return unavailable(msg, address, res.status, json);
     }
 
     const estimate = pickEstimate(json);
     const low = pickLow(json);
     const high = pickHigh(json);
 
+    if (!estimate) {
+      return unavailable("External lookup completed, but no numeric estimate was available for this property. Using Internal Valuation instead.", address, 200, json);
+    }
+
     return NextResponse.json({
       data: {
         source: "rentcast",
-        message: estimate
-          ? "RentCast external market estimate saved and displayed."
-          : "RentCast responded, but no numeric estimate was found for this address.",
+        message: "RentCast external market estimate saved and displayed.",
         address,
         estimate,
         low,

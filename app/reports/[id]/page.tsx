@@ -427,6 +427,10 @@ export default function ReportEditPage() {
           pricePerSqft: d.pricePerSqft,
           confidence: d.confidence,
           valuationMethod: d.method,
+          valuationCommentary:
+            d.suggestedNarrative && !(current.valuationSummary.valuationCommentary ?? "").includes("internal valuation model indicates")
+              ? `${(current.valuationSummary.valuationCommentary ?? "").trim() ? `${(current.valuationSummary.valuationCommentary ?? "").trim()}\n\n` : ""}${d.suggestedNarrative}`
+              : current.valuationSummary.valuationCommentary,
         },
       });
       await persistReportData(next, `✅ Valuation calculated and saved: ${money(d.estimate)}`);
@@ -489,8 +493,8 @@ export default function ReportEditPage() {
       await persistReportData(
         next,
         estimate
-          ? `✅ External lookup saved: ${money(estimate)}`
-          : `✅ External lookup saved, but no numeric estimate was returned.`
+          ? `✅ External estimate saved and displayed: ${money(estimate)}`
+          : `✅ External data unavailable; Internal Valuation remains active.`
       );
     } catch (e: any) {
       setErrorMsg(e?.message || "External lookup failed");
@@ -683,8 +687,8 @@ export default function ReportEditPage() {
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 8, fontSize: 13 }}>Smart Valuation & AI</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>MVP Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>MVP Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
+            <div><div style={labelStyle}>Internal Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Internal Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
             <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
             <div><div style={labelStyle}>External Range</div><div>{valuation.externalLow || valuation.externalHigh ? `${money(valuation.externalLow)} - ${money(valuation.externalHigh)}` : "—"}</div></div>
           </div>
@@ -695,11 +699,11 @@ export default function ReportEditPage() {
             <div><strong>External Status:</strong> {externalSummary(valuation)}</div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={calculateValuation} disabled={valuing || isFinal} style={{ ...btnBase, opacity: valuing || isFinal ? 0.6 : 1 }}>{valuing ? "Calculating…" : "Calculate Value"}</button>
+            <button onClick={calculateValuation} disabled={valuing || isFinal} style={{ ...btnBase, opacity: valuing || isFinal ? 0.6 : 1 }}>{valuing ? "Calculating…" : "Calculate Internal Value"}</button>
             <button onClick={externalLookup} disabled={externalLoading || isFinal} style={{ ...btnBase, opacity: externalLoading || isFinal ? 0.6 : 1 }}>{externalLoading ? "Checking…" : "External Lookup"}</button>
             <button onClick={generateAiReport} disabled={aiLoading || isFinal} style={{ ...btnDark, opacity: aiLoading || isFinal ? 0.6 : 1 }}>{aiLoading ? "Generating…" : "Generate AI Report"}</button>
           </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Recommended flow: 1) Fill property data → 2) Calculate Value → 3) External Lookup → 4) Generate AI Report.</div>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Recommended flow: 1) Fill property data → 2) Calculate Internal Value → 3) External Lookup → 4) Generate AI Report.</div>
         </div>
 
         <div style={sectionCard}>
@@ -780,15 +784,15 @@ export default function ReportEditPage() {
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Valuation Summary</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>MVP Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>MVP Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
+            <div><div style={labelStyle}>Internal Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Internal Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
             <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
             <div><div style={labelStyle}>External Range</div><div>{valuation.externalLow || valuation.externalHigh ? `${money(valuation.externalLow)} - ${money(valuation.externalHigh)}` : "—"}</div></div>
           </div>
           <div><div style={labelStyle}>Intended Use</div><select value={reportData.valuationSummary.intendedUse ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.intendedUse", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="mortgage">Mortgage</option><option value="legal">Legal</option><option value="internal">Internal</option></select></div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Valuation Commentary</div><textarea placeholder="Write your valuation narrative here…" value={reportData.valuationSummary.valuationCommentary ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.valuationCommentary", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 120 }} /></div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Limiting Conditions</div><textarea placeholder="Any limiting conditions / assumptions…" value={reportData.valuationSummary.limitingConditions ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.limitingConditions", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 85 }} /></div>
-          {valuation.valuationMethod && <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}><strong>MVP Method:</strong> {valuation.valuationMethod}</div>}
+          {valuation.valuationMethod && <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}><strong>Internal Method:</strong> {valuation.valuationMethod}</div>}
           {valuation.externalMessage && <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}><strong>External Message:</strong> {valuation.externalMessage}</div>}
         </div>
 
