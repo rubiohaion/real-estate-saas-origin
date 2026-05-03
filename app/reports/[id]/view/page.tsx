@@ -111,6 +111,10 @@ export default function ReportViewPage() {
     <>
       <style>{`@media print { body { background: white !important; } .no-print { display: none !important; } .page { box-shadow: none !important; border-radius: 0 !important; } @page { margin: 14mm; } }`}</style>
       <div style={{ background: "#e5e7eb", minHeight: "100vh", padding: 28 }}>
+        <div className="no-print" style={{ maxWidth: 900, margin: "0 auto 12px", display: "flex", gap: 10 }}>
+          <button onClick={() => window.history.back()} style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid #ccc", background: "white", cursor: "pointer", fontWeight: 800 }}>Back to Report</button>
+          <button onClick={() => (window.location.href = "/")} style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid #ccc", background: "white", cursor: "pointer", fontWeight: 800 }}>Back to Dashboard</button>
+        </div>
         <div className="page" style={pageStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
             <div><div style={{ fontSize: 26, fontWeight: 800 }}>Residential Appraisal Report</div><div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}><div><strong>Report ID:</strong> {report.id}</div><div><strong>Created:</strong> {createdDate}</div><div><strong>Status:</strong> FINAL</div></div></div>

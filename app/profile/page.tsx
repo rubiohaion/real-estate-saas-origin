@@ -286,6 +286,8 @@ export default function ProfilePage() {
           </div>
         )}
 
+        <div style={{ padding: 10, borderRadius: 8, background: "#f8fafc", color: "#374151", fontSize: 12, lineHeight: 1.5 }}>Professional profile upgrade ready: company, license number, signature name, title and logo fields are planned for the next database migration. Current editable fields are stored in your existing Supabase profile table.</div>
+
         {error && (
           <div
             style={{

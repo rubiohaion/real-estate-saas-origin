@@ -678,6 +678,33 @@ export default function ReportEditPage() {
         </div>
       </div>
 
+      <div style={{ ...sectionCard, marginTop: 14, border: "2px solid #111", background: "#fafafa" }}>
+        <div style={{ fontWeight: 900, marginBottom: 10, fontSize: 15 }}>Start here: property basics</div>
+        <input
+          placeholder="Property address"
+          value={address}
+          disabled={isFinal}
+          autoFocus
+          onChange={(e) => setAddress(e.target.value)}
+          style={{ ...inputStyle(isFinal), fontSize: 16, padding: 13, fontWeight: 700 }}
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 8, marginTop: 8 }}>
+          <input placeholder="City" value={city} disabled={isFinal} onChange={(e) => setCity(e.target.value)} style={inputStyle(isFinal)} />
+          <input placeholder="State" value={stateUS} disabled={isFinal} onChange={(e) => setStateUS(e.target.value)} style={inputStyle(isFinal)} />
+          <input placeholder="ZIP" value={zip} disabled={isFinal} onChange={(e) => setZip(e.target.value)} style={inputStyle(isFinal)} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
+          <input type="number" placeholder="Beds" value={beds} disabled={isFinal} onChange={(e) => setBeds(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
+          <input type="number" step="0.5" placeholder="Baths" value={baths} disabled={isFinal} onChange={(e) => setBaths(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
+          <input type="number" placeholder="Sqft" value={livingArea} disabled={isFinal} onChange={(e) => setLivingArea(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
+          <input type="number" placeholder="Year Built" value={yearBuilt} disabled={isFinal} onChange={(e) => setYearBuilt(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+          <button onClick={calculateValuation} disabled={valuing || isFinal} style={{ ...btnBase, opacity: valuing || isFinal ? 0.6 : 1 }}>{valuing ? "Calculating…" : "Calculate Internal Value"}</button>
+          <button onClick={generateAiReport} disabled={aiLoading || isFinal} style={{ ...btnDark, opacity: aiLoading || isFinal ? 0.6 : 1 }}>{aiLoading ? "Generating…" : "Generate AI Report"}</button>
+        </div>
+      </div>
+
       {message && <div style={{ marginTop: 12, padding: 10, borderRadius: 10, background: "#ecfdf5", color: "#065f46", fontSize: 13 }}>{message}</div>}
       {errorMsg && <div style={{ marginTop: 12, padding: 10, borderRadius: 10, background: "#fee2e2", color: "#991b1b", fontSize: 13 }}>❌ {errorMsg}</div>}
 
@@ -772,26 +799,10 @@ export default function ReportEditPage() {
 
       <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
         <div style={sectionCard}>
-          <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Basic Property Details</div>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8 }}>
-            <input placeholder="Address" value={address} disabled={isFinal} onChange={(e) => setAddress(e.target.value)} style={inputStyle(isFinal)} />
-            <input placeholder="City" value={city} disabled={isFinal} onChange={(e) => setCity(e.target.value)} style={inputStyle(isFinal)} />
-            <input placeholder="State" value={stateUS} disabled={isFinal} onChange={(e) => setStateUS(e.target.value)} style={inputStyle(isFinal)} />
-            <input placeholder="ZIP" value={zip} disabled={isFinal} onChange={(e) => setZip(e.target.value)} style={inputStyle(isFinal)} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 8 }}>
-            <input type="number" placeholder="Beds" value={beds} disabled={isFinal} onChange={(e) => setBeds(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
-            <input type="number" step="0.5" placeholder="Baths" value={baths} disabled={isFinal} onChange={(e) => setBaths(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
-            <input type="number" placeholder="Sqft" value={livingArea} disabled={isFinal} onChange={(e) => setLivingArea(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
-            <input type="number" placeholder="Year Built" value={yearBuilt} disabled={isFinal} onChange={(e) => setYearBuilt(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
-          </div>
-        </div>
-
-        <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Property Description</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div><div style={labelStyle}>Property Type</div><select value={reportData.propertyDescription.propertyType ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.propertyType", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="single_family">Single Family</option><option value="condo">Condo</option><option value="townhouse">Townhouse</option></select></div>
-            <div><div style={labelStyle}>Condition</div><input placeholder="Average / Good / Fair" value={reportData.propertyDescription.condition ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.condition", e.target.value)} style={inputStyle(isFinal)} /></div>
+            <div><div style={labelStyle}>Property Type</div><select value={reportData.propertyDescription.propertyType ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.propertyType", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="single_family">Single Family</option><option value="condo">Condo</option><option value="townhouse">Townhouse</option><option value="multi_family">Multi Family</option><option value="apartment">Apartment</option><option value="duplex">Duplex</option><option value="triplex">Triplex</option><option value="fourplex">Fourplex</option><option value="manufactured_home">Manufactured Home</option><option value="land">Land</option><option value="mixed_use">Mixed Use</option><option value="other">Other</option></select></div>
+            <div><div style={labelStyle}>Condition</div><select value={reportData.propertyDescription.condition ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.condition", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="new_like_new">New / Like New</option><option value="excellent">Excellent</option><option value="very_good">Very Good</option><option value="good">Good</option><option value="average">Average</option><option value="fair">Fair</option><option value="poor">Poor</option><option value="needs_renovation">Needs Renovation</option><option value="under_construction">Under Construction</option><option value="other">Other</option></select></div>
           </div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Additional Improvements</div><textarea placeholder="Notes about improvements, renovations, upgrades…" value={reportData.propertyDescription.additionalImprovements ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.additionalImprovements", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 85 }} /></div>
         </div>
