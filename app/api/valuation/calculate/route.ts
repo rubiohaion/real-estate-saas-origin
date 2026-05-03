@@ -35,14 +35,18 @@ function normalizeText(v?: string | null) {
   return (v ?? "").trim().toLowerCase();
 }
 
-function basePricePerSqft(state?: string, city?: string) {
+function basePricePerSqft(state?: string, city?: string, zip?: string) {
   const s = (state ?? "").trim().toUpperCase();
   const c = normalizeText(city);
+  const z = normalizeText(zip);
 
   // City overrides first. These are broad MVP assumptions, not verified market data.
-  if (c.includes("san francisco")) return 775;
+  if (c.includes("beverly hills") || z === "90210" || z === "90211" || z === "90212") return 1650;
+  if (c.includes("malibu")) return 1700;
+  if (c.includes("santa monica")) return 1350;
+  if (c.includes("san francisco")) return 1200;
   if (c.includes("new york") || c.includes("manhattan")) return 720;
-  if (c.includes("los angeles") || c.includes("santa monica")) return 625;
+  if (c.includes("los angeles")) return 850;
   if (c.includes("seattle") || c.includes("bellevue")) return 510;
   if (c.includes("boston") || c.includes("cambridge")) return 500;
   if (c.includes("miami") || c.includes("fort lauderdale")) return 425;
@@ -149,7 +153,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const basePsf = basePricePerSqft(body.state, body.city);
+    const basePsf = basePricePerSqft(body.state, body.city, body.zip);
     const condition = conditionFactor(body.condition);
     const age = ageFactor(yearBuilt);
     const propertyType = propertyTypeFactor(body.propertyType);
@@ -159,7 +163,8 @@ export async function POST(req: Request) {
     const adjustedPsf = basePsf * condition.factor * age.factor * propertyType.factor * size.factor;
     const baseValue = sqft * adjustedPsf;
     const rawEstimate = baseValue + rooms.bedAdj + rooms.bathAdj;
-    const estimate = roundToNearest(rawEstimate, 1000);
+    const locationFloor = basePsf >= 1200 ? sqft * Math.max(basePsf * 0.92, 1400) : rawEstimate;
+    const estimate = roundToNearest(Math.max(rawEstimate, locationFloor), 1000);
     const pricePerSqft = Math.round(estimate / sqft);
     const confidenceScore = completenessScore(body, sqft);
     const pct = rangePct(confidenceScore);

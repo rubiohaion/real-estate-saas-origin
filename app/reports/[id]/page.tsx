@@ -55,6 +55,9 @@ type ReportData = {
     externalRaw?: any;
     aiSource?: string;
     aiGeneratedAt?: string;
+    adjustedValue?: number | null;
+    finalValue?: number | null;
+    valueSource?: string;
   };
   appraiserDeclaration: {
     appraiserName?: string;
@@ -427,6 +430,9 @@ export default function ReportEditPage() {
           pricePerSqft: d.pricePerSqft,
           confidence: d.confidence,
           valuationMethod: d.method,
+          adjustedValue: current.valuationSummary.adjustedValue ?? null,
+          finalValue: current.valuationSummary.adjustedValue ?? d.estimate,
+          valueSource: current.valuationSummary.adjustedValue ? "Appraiser Adjusted" : "Internal Valuation",
           valuationCommentary:
             d.suggestedNarrative && !(current.valuationSummary.valuationCommentary ?? "").includes("internal valuation model indicates")
               ? `${(current.valuationSummary.valuationCommentary ?? "").trim() ? `${(current.valuationSummary.valuationCommentary ?? "").trim()}\n\n` : ""}${d.suggestedNarrative}`
@@ -484,6 +490,8 @@ export default function ReportEditPage() {
           externalMessage: d.message || "External lookup completed.",
           externalCheckedAt: d.checkedAt || new Date().toISOString(),
           externalRaw: d.raw ?? null,
+          finalValue: current.valuationSummary.adjustedValue ?? estimate ?? current.valuationSummary.finalValue ?? current.valuationSummary.estimatedValue ?? null,
+          valueSource: current.valuationSummary.adjustedValue ? "Appraiser Adjusted" : estimate ? "External Lookup" : current.valuationSummary.valueSource ?? "Internal Valuation",
           valuationCommentary: shouldAppend
             ? `${currentCommentary ? `${currentCommentary}\n\n` : ""}${externalLine}`
             : currentCommentary,
@@ -666,8 +674,7 @@ export default function ReportEditPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
           <button onClick={() => router.push("/")} style={btnBase}>Back to Dashboard</button>
-          <button onClick={saveReport} disabled={saving || isFinal} style={{ ...btnBase, opacity: saving || isFinal ? 0.6 : 1 }}>{isFinal ? "Final (Locked)" : saving ? "Saving…" : "Save"}</button>
-          <button onClick={finalizeReport} disabled={isFinal || finalizing} style={{ ...btnDark, opacity: isFinal || finalizing ? 0.6 : 1 }}>{isFinal ? "Final" : finalizing ? "Finalizing…" : "Finalize"}</button>
+          {!isFinal && <button onClick={saveReport} disabled={saving} style={{ ...btnBase, opacity: saving ? 0.6 : 1 }}>{saving ? "Saving…" : "Quick Save"}</button>}
         </div>
       </div>
 
@@ -686,11 +693,29 @@ export default function ReportEditPage() {
       <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 8, fontSize: 13 }}>Smart Valuation & AI</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>Internal Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Internal Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 10 }}>
+            <div><div style={labelStyle}>Calculated Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Calculated Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
             <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
-            <div><div style={labelStyle}>External Range</div><div>{valuation.externalLow || valuation.externalHigh ? `${money(valuation.externalLow)} - ${money(valuation.externalHigh)}` : "—"}</div></div>
+            <div><div style={labelStyle}>Final Value Used</div><div style={{ fontWeight: 900 }}>{money(valuation.finalValue ?? valuation.adjustedValue ?? valuation.externalEstimate ?? valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Source</div><div>{valuation.valueSource || (valuation.adjustedValue ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : valuation.estimatedValue ? "Internal Valuation" : "—")}</div></div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>Appraiser Adjusted Value (optional)</div>
+            <input
+              type="number"
+              placeholder="Enter final value if appraiser overrides the calculated estimate"
+              value={valuation.adjustedValue ?? ""}
+              disabled={isFinal}
+              onChange={(e) => {
+                const val = e.target.value === "" ? null : Number(e.target.value);
+                updateReportData("valuationSummary.adjustedValue", val);
+                updateReportData("valuationSummary.finalValue", val ?? valuation.externalEstimate ?? valuation.estimatedValue ?? null);
+                updateReportData("valuationSummary.valueSource", val ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : "Internal Valuation");
+              }}
+              style={inputStyle(isFinal)}
+            />
+            <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>The adjusted value is the value that will be treated as the final appraiser-supported value in the report narrative.</div>
           </div>
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 10, background: "#f8fafc", fontSize: 12.5, lineHeight: 1.55, marginBottom: 10 }}>
             <div><strong>External Source:</strong> {valuation.externalSource || "—"}</div>
@@ -783,11 +808,29 @@ export default function ReportEditPage() {
 
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Valuation Summary</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>Internal Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Internal Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 10 }}>
+            <div><div style={labelStyle}>Calculated Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Calculated Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
             <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
-            <div><div style={labelStyle}>External Range</div><div>{valuation.externalLow || valuation.externalHigh ? `${money(valuation.externalLow)} - ${money(valuation.externalHigh)}` : "—"}</div></div>
+            <div><div style={labelStyle}>Final Value Used</div><div style={{ fontWeight: 900 }}>{money(valuation.finalValue ?? valuation.adjustedValue ?? valuation.externalEstimate ?? valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Source</div><div>{valuation.valueSource || (valuation.adjustedValue ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : valuation.estimatedValue ? "Internal Valuation" : "—")}</div></div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={labelStyle}>Appraiser Adjusted Value (optional)</div>
+            <input
+              type="number"
+              placeholder="Enter final value if appraiser overrides the calculated estimate"
+              value={valuation.adjustedValue ?? ""}
+              disabled={isFinal}
+              onChange={(e) => {
+                const val = e.target.value === "" ? null : Number(e.target.value);
+                updateReportData("valuationSummary.adjustedValue", val);
+                updateReportData("valuationSummary.finalValue", val ?? valuation.externalEstimate ?? valuation.estimatedValue ?? null);
+                updateReportData("valuationSummary.valueSource", val ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : "Internal Valuation");
+              }}
+              style={inputStyle(isFinal)}
+            />
+            <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>The adjusted value is the value that will be treated as the final appraiser-supported value in the report narrative.</div>
           </div>
           <div><div style={labelStyle}>Intended Use</div><select value={reportData.valuationSummary.intendedUse ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.intendedUse", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="mortgage">Mortgage</option><option value="legal">Legal</option><option value="internal">Internal</option></select></div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Valuation Commentary</div><textarea placeholder="Write your valuation narrative here…" value={reportData.valuationSummary.valuationCommentary ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.valuationCommentary", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 120 }} /></div>
@@ -803,6 +846,16 @@ export default function ReportEditPage() {
             <div><div style={labelStyle}>License Number</div><input placeholder="License #" value={reportData.appraiserDeclaration.licenseNumber ?? ""} disabled={isFinal} onChange={(e) => updateReportData("appraiserDeclaration.licenseNumber", e.target.value)} style={inputStyle(isFinal)} /></div>
             <div><div style={labelStyle}>Effective Date</div><input type="date" value={reportData.appraiserDeclaration.effectiveDate ?? ""} disabled={isFinal} onChange={(e) => updateReportData("appraiserDeclaration.effectiveDate", e.target.value)} style={inputStyle(isFinal)} /></div>
             <div><div style={labelStyle}>Signature Text</div><input placeholder="e.g., /s/ John Doe" value={reportData.appraiserDeclaration.signatureText ?? ""} disabled={isFinal} onChange={(e) => updateReportData("appraiserDeclaration.signatureText", e.target.value)} style={inputStyle(isFinal)} /></div>
+          </div>
+        </div>
+
+        <div style={{ ...sectionCard, border: "2px solid #111" }}>
+          <div style={{ fontWeight: 900, marginBottom: 8, fontSize: 14 }}>Final actions</div>
+          <div style={{ fontSize: 12.5, color: "#6b7280", marginBottom: 10 }}>Review all sections before saving or finalizing. Finalized reports become locked.</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={saveReport} disabled={saving || isFinal} style={{ ...btnDark, opacity: saving || isFinal ? 0.6 : 1 }}>{isFinal ? "Final (Locked)" : saving ? "Saving…" : "Save Report"}</button>
+            <button onClick={finalizeReport} disabled={isFinal || finalizing} style={{ ...btnBase, opacity: isFinal || finalizing ? 0.6 : 1 }}>{isFinal ? "Already Final" : finalizing ? "Finalizing…" : "Finalize Report"}</button>
+            <button onClick={() => router.push("/")} style={btnBase}>Back to Dashboard</button>
           </div>
         </div>
       </div>

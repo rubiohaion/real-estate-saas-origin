@@ -7,7 +7,7 @@ type ReportData = {
   propertyIdentification?: { enteredAddress?: string; verifiedAddress?: string; county?: string; city?: string; state?: string; zip?: string };
   propertyDescription?: { propertyType?: string; bedrooms?: number; bathrooms?: number; sqft?: number; yearBuilt?: number; condition?: string; additionalImprovements?: string };
   neighborhoodOverview?: { marketConditions?: string; zoning?: string; neighborhoodDescription?: string; accessToServices?: string };
-  valuationSummary?: { intendedUse?: string; valuationCommentary?: string; limitingConditions?: string; estimatedValue?: number; estimatedLow?: number; estimatedHigh?: number; pricePerSqft?: number; confidence?: string; valuationMethod?: string; externalEstimate?: number | null; externalLow?: number | null; externalHigh?: number | null; externalSource?: string; externalMessage?: string; aiSource?: string; aiGeneratedAt?: string };
+  valuationSummary?: { intendedUse?: string; valuationCommentary?: string; limitingConditions?: string; estimatedValue?: number; estimatedLow?: number; estimatedHigh?: number; pricePerSqft?: number; confidence?: string; valuationMethod?: string; externalEstimate?: number | null; externalLow?: number | null; externalHigh?: number | null; externalSource?: string; externalMessage?: string; aiSource?: string; aiGeneratedAt?: string; adjustedValue?: number | null; finalValue?: number | null; valueSource?: string };
   appraiserDeclaration?: { appraiserName?: string; licenseNumber?: string; effectiveDate?: string; signatureText?: string };
 };
 
@@ -108,7 +108,7 @@ export default function SharedReportPage() {
           </div>
 
           <div style={sectionBox}><div style={sectionTitle}>Valuation Summary</div><table style={tableStyle}><tbody>
-            <tr style={rowStyle}><td style={labelCell}>Internal Estimate</td><td style={valueCell}>{money(vs.estimatedValue)}</td></tr>
+            <tr style={rowStyle}><td style={labelCell}>Final Value</td><td style={valueCell}>{money(vs.finalValue ?? vs.adjustedValue ?? vs.externalEstimate ?? vs.estimatedValue)}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>Estimated Range</td><td style={valueCell}>{vs.estimatedLow ? `${money(vs.estimatedLow)} - ${money(vs.estimatedHigh)}` : "—"}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>Price per Sqft</td><td style={valueCell}>{vs.pricePerSqft ? `$${vs.pricePerSqft}` : "—"}</td></tr>
             <tr style={rowStyle}><td style={labelCell}>External Estimate</td><td style={valueCell}>{money(vs.externalEstimate)}</td></tr>

@@ -31,7 +31,9 @@ function fallbackText(body: Payload) {
   const condition = pd.condition || "the reported condition";
   const propertyType = pd.propertyType || "residential property";
 
-  const internalEstimate = vs.estimatedValue ? money(vs.estimatedValue) : "the internal valuation indication";
+  const finalValue = vs.adjustedValue ?? vs.finalValue ?? vs.externalEstimate ?? vs.estimatedValue;
+  const valueSource = vs.adjustedValue ? "appraiser-adjusted value" : vs.externalEstimate ? "external market indication" : "internal valuation indication";
+  const internalEstimate = finalValue ? money(finalValue) : "the internal valuation indication";
   const internalRange = vs.estimatedLow && vs.estimatedHigh ? `${money(vs.estimatedLow)} to ${money(vs.estimatedHigh)}` : "the indicated internal range";
   const externalEstimate = vs.externalEstimate ? money(vs.externalEstimate) : null;
   const externalSentence = externalEstimate
@@ -42,7 +44,7 @@ function fallbackText(body: Payload) {
     neighborhoodDescription:
       `The subject property is located at ${address || "the stated address"}. The surrounding neighborhood should be reviewed for residential appeal, access to employment centers, schools, transportation routes, shopping, and other market influences. ${no.marketConditions ? `The selected market condition input is ${no.marketConditions}. ` : ""}Final neighborhood conclusions should be supported by verified local market evidence and comparable sales activity.`,
     valuationCommentary:
-      `The subject is described as a ${propertyType} with ${sqft}, ${beds}, ${baths}, ${yearBuilt}, and ${condition}. The internal valuation model indicates a preliminary value of ${internalEstimate}, with an indicated range of ${internalRange}. ${externalSentence} The value conclusion should be reconciled with verified comparable sales, location differences, condition adjustments, age/quality considerations, and any appraiser-specific assumptions before final reliance.`,
+      `The subject is described as a ${propertyType} with ${sqft}, ${beds}, ${baths}, ${yearBuilt}, and ${condition}. The indicated value used in this draft narrative is ${internalEstimate}, based on the ${valueSource}, with an internal support range of ${internalRange}. ${externalSentence} The value conclusion should be reconciled with verified comparable sales, location differences, condition adjustments, age/quality considerations, and any appraiser-specific assumptions before final reliance.`,
     limitingConditions:
       `This AI-assisted narrative and internal valuation are for draft support only. They do not replace appraiser judgment, independent verification, market-supported comparable analysis, USPAP/compliance review, or the responsible appraiser's final reconciliation. The final report should be reviewed, supported, and approved by the responsible appraiser.`,
     riskMarketInsight:
