@@ -329,18 +329,6 @@ export default function HomeDashboardPage() {
                     {final && (
                       <>
                         <a
-                          href={`/reports/${r.id}`}
-                          style={{
-                            fontSize: 13,
-                            color: "#111",
-                            textDecoration: "underline",
-                            fontWeight: 800,
-                          }}
-                        >
-                          Manage
-                        </a>
-
-                        <a
                           href={`/reports/${r.id}/view`}
                           style={{
                             fontSize: 13,
@@ -349,7 +337,7 @@ export default function HomeDashboardPage() {
                             fontWeight: 800,
                           }}
                         >
-                          View
+                          View / PDF
                         </a>
 
                         <button

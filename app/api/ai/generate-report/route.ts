@@ -31,20 +31,16 @@ function fallbackText(body: Payload) {
   const condition = pd.condition || "the reported condition";
   const propertyType = pd.propertyType || "residential property";
 
-  const finalValue = vs.adjustedValue ?? vs.finalValue ?? vs.externalEstimate ?? vs.estimatedValue;
-  const valueSource = vs.adjustedValue ? "appraiser-adjusted value" : vs.externalEstimate ? "external market indication" : "internal valuation indication";
-  const internalEstimate = finalValue ? money(finalValue) : "the internal valuation indication";
-  const internalRange = vs.estimatedLow && vs.estimatedHigh ? `${money(vs.estimatedLow)} to ${money(vs.estimatedHigh)}` : "the indicated internal range";
-  const externalEstimate = vs.externalEstimate ? money(vs.externalEstimate) : null;
-  const externalSentence = externalEstimate
-    ? `An external market data indication of ${externalEstimate} was also saved and should be considered as a secondary reference point.`
-    : `No verified external AVM is currently available; the analysis therefore relies on the internal model and should be supported with appraiser-selected comparable sales.`;
+  const finalValue = vs.finalValue ?? vs.adjustedValue ?? vs.estimatedValue;
+  const valueSource = vs.adjustedValue ? "appraiser-adjusted value" : "internal system value reconciled by the appraiser";
+  const finalValueText = finalValue ? money(finalValue) : "the appraiser's final value conclusion";
+  const marketConditions = no.marketConditions || "not specified";
 
   return {
     neighborhoodDescription:
-      `The subject property is located at ${address || "the stated address"}. The surrounding neighborhood should be reviewed for residential appeal, access to employment centers, schools, transportation routes, shopping, and other market influences. ${no.marketConditions ? `The selected market condition input is ${no.marketConditions}. ` : ""}Final neighborhood conclusions should be supported by verified local market evidence and comparable sales activity.`,
+      `The subject property is located at ${address || "the stated address"}. The surrounding neighborhood should be reviewed for residential appeal, access to employment centers, schools, transportation routes, shopping, and other market influences. Market conditions are identified as ${marketConditions}. Final neighborhood conclusions should be supported by verified local market evidence and comparable sales activity.`,
     valuationCommentary:
-      `The subject is described as a ${propertyType} with ${sqft}, ${beds}, ${baths}, ${yearBuilt}, and ${condition}. The indicated value used in this draft narrative is ${internalEstimate}, based on the ${valueSource}, with an internal support range of ${internalRange}. ${externalSentence} The value conclusion should be reconciled with verified comparable sales, location differences, condition adjustments, age/quality considerations, and any appraiser-specific assumptions before final reliance.`,
+      `The subject is described as a ${propertyType} with ${sqft}, ${beds}, ${baths}, ${yearBuilt}, and ${condition}. The Final Opinion of Value used for this narrative is ${finalValueText}, based on the ${valueSource}. Market conditions are identified as ${marketConditions}. The conclusion should be supported with verified comparable sales, location differences, condition adjustments, age/quality considerations, and any appraiser-specific assumptions before final reliance.`,
     limitingConditions:
       `This AI-assisted narrative and internal valuation are for draft support only. They do not replace appraiser judgment, independent verification, market-supported comparable analysis, USPAP/compliance review, or the responsible appraiser's final reconciliation. The final report should be reviewed, supported, and approved by the responsible appraiser.`,
     riskMarketInsight:

@@ -64,6 +64,14 @@ type ReportData = {
     licenseNumber?: string;
     effectiveDate?: string;
     signatureText?: string;
+    company?: string;
+    phone?: string;
+    title?: string;
+    licenseState?: string;
+    yearsOfExperience?: string;
+    specialization?: string;
+    businessAddress?: string;
+    logoUrl?: string;
   };
 };
 
@@ -351,7 +359,29 @@ export default function ReportEditPage() {
       setBaths(rep.baths ?? "");
       setLivingArea(rep.living_area_sqft ?? "");
       setYearBuilt(rep.year_built ?? "");
-      setReportData(normalizeReportData(rep.report_data));
+      const normalized = normalizeReportData(rep.report_data);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name,phone,company,license_number,years_of_experience,specialization,address,city,state,zip,signature_name,title,license_state,logo_url")
+        .eq("id", uid)
+        .maybeSingle();
+      if (profile) {
+        normalized.appraiserDeclaration = {
+          ...normalized.appraiserDeclaration,
+          appraiserName: normalized.appraiserDeclaration.appraiserName || (profile as any).full_name || undefined,
+          licenseNumber: normalized.appraiserDeclaration.licenseNumber || (profile as any).license_number || undefined,
+          signatureText: normalized.appraiserDeclaration.signatureText || (profile as any).signature_name || (profile as any).full_name || undefined,
+          company: (profile as any).company || undefined,
+          phone: (profile as any).phone || undefined,
+          title: (profile as any).title || undefined,
+          licenseState: (profile as any).license_state || undefined,
+          yearsOfExperience: (profile as any).years_of_experience || undefined,
+          specialization: (profile as any).specialization || undefined,
+          businessAddress: [(profile as any).address, (profile as any).city, (profile as any).state, (profile as any).zip].filter(Boolean).join(", ") || undefined,
+          logoUrl: (profile as any).logo_url || undefined,
+        };
+      }
+      setReportData(normalized);
 
       const { data: ext } = await supabase
         .from("external_properties")
@@ -417,6 +447,7 @@ export default function ReportEditPage() {
           bathrooms: current.propertyDescription.bathrooms,
           yearBuilt: current.propertyDescription.yearBuilt,
           condition: current.propertyDescription.condition,
+          marketConditions: current.neighborhoodOverview.marketConditions,
         }),
       });
       const json = await res.json();
@@ -431,8 +462,8 @@ export default function ReportEditPage() {
           confidence: d.confidence,
           valuationMethod: d.method,
           adjustedValue: current.valuationSummary.adjustedValue ?? null,
-          finalValue: current.valuationSummary.adjustedValue ?? d.estimate,
-          valueSource: current.valuationSummary.adjustedValue ? "Appraiser Adjusted" : "Internal Valuation",
+          finalValue: current.valuationSummary.adjustedValue ?? current.valuationSummary.finalValue ?? d.estimate,
+          valueSource: current.valuationSummary.adjustedValue ? "Appraiser Adjusted" : current.valuationSummary.finalValue ? "Appraiser Final Opinion" : "Internal Valuation",
           valuationCommentary:
             d.suggestedNarrative && !(current.valuationSummary.valuationCommentary ?? "").includes("internal valuation model indicates")
               ? `${(current.valuationSummary.valuationCommentary ?? "").trim() ? `${(current.valuationSummary.valuationCommentary ?? "").trim()}\n\n` : ""}${d.suggestedNarrative}`
@@ -521,7 +552,20 @@ export default function ReportEditPage() {
       const res = await fetch("/api/ai/generate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, city, state: stateUS, zip, reportData: current, valuation: current.valuationSummary }),
+        body: JSON.stringify({
+          address,
+          city,
+          state: stateUS,
+          zip,
+          reportData: {
+            ...current,
+            valuationSummary: {
+              ...current.valuationSummary,
+              finalValue: current.valuationSummary.finalValue ?? current.valuationSummary.adjustedValue ?? current.valuationSummary.estimatedValue ?? null,
+            },
+          },
+          valuation: current.valuationSummary,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "AI generation failed");
@@ -537,7 +581,7 @@ export default function ReportEditPage() {
           aiGeneratedAt: new Date().toISOString(),
         },
       });
-      await persistReportData(next, `✅ AI narrative generated and saved (${d.source || "AI"})`);
+      await persistReportData(next, `✅ AI narrative generated and updated on screen (${d.source || "AI"})`);
     } catch (e: any) {
       setErrorMsg(e?.message || "AI generation failed");
     } finally {
@@ -665,8 +709,9 @@ export default function ReportEditPage() {
     <div style={{ padding: 18, maxWidth: 980, margin: "0 auto", fontFamily: "Arial, Helvetica, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{isFinal ? "Report (Final - Locked)" : "Edit Report"}</h1>
-          <div style={{ fontSize: 12, color: "#666" }}>ID: {id}</div>
+          <h1 style={{ fontSize: 34, fontWeight: 900, margin: "0 0 4px 0", letterSpacing: "-0.5px" }}>{enteredAddressLine || (isFinal ? "Report (Final - Locked)" : "Edit Report")}</h1>
+          <div style={{ fontSize: 15, color: "#4b5563", marginBottom: 8 }}>{[city, stateUS, zip].filter(Boolean).join(" / ") || "City / State / ZIP"}</div>
+          <div style={{ fontSize: 12, color: "#666" }}>Report ID: {id}</div>
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, padding: "4px 8px", borderRadius: 999, border: "1px solid #ccc" }}>Status: {isFinal ? "FINAL" : "DRAFT"}</span>
             {isFinal && <a href={`/reports/${id}/view`} style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #111", textDecoration: "none", color: "white", background: "#111", fontSize: 12, fontWeight: 800 }}>View / Print PDF →</a>}
@@ -674,7 +719,7 @@ export default function ReportEditPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
           <button onClick={() => router.push("/")} style={btnBase}>Back to Dashboard</button>
-          {!isFinal && <button onClick={saveReport} disabled={saving} style={{ ...btnBase, opacity: saving ? 0.6 : 1 }}>{saving ? "Saving…" : "Quick Save"}</button>}
+
         </div>
       </div>
 
@@ -693,15 +738,13 @@ export default function ReportEditPage() {
       <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 8, fontSize: 13 }}>Smart Valuation & AI</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>Calculated Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Calculated Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
-            <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
-            <div><div style={labelStyle}>Final Value Used</div><div style={{ fontWeight: 900 }}>{money(valuation.finalValue ?? valuation.adjustedValue ?? valuation.externalEstimate ?? valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Source</div><div>{valuation.valueSource || (valuation.adjustedValue ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : valuation.estimatedValue ? "Internal Valuation" : "—")}</div></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 }}>
+            <div><div style={labelStyle}>Calculated/System Value</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
+            <div><div style={labelStyle}>Appraiser Adjusted Value</div><div style={{ fontWeight: 900 }}>{money(valuation.adjustedValue)}</div></div>
+            <div><div style={labelStyle}>Final Opinion of Value</div><div style={{ fontWeight: 900 }}>{money(valuation.finalValue ?? valuation.adjustedValue ?? valuation.estimatedValue)}</div></div>
           </div>
           <div style={{ marginBottom: 10 }}>
-            <div style={labelStyle}>Appraiser Adjusted Value (optional)</div>
+            <div style={labelStyle}>Appraiser Adjusted Value / Manual Final Opinion</div>
             <input
               type="number"
               placeholder="Enter final value if appraiser overrides the calculated estimate"
@@ -710,25 +753,21 @@ export default function ReportEditPage() {
               onChange={(e) => {
                 const val = e.target.value === "" ? null : Number(e.target.value);
                 updateReportData("valuationSummary.adjustedValue", val);
-                updateReportData("valuationSummary.finalValue", val ?? valuation.externalEstimate ?? valuation.estimatedValue ?? null);
-                updateReportData("valuationSummary.valueSource", val ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : "Internal Valuation");
+                updateReportData("valuationSummary.finalValue", val ?? valuation.estimatedValue ?? null);
+                updateReportData("valuationSummary.valueSource", val ? "Appraiser Adjusted" : "Internal Valuation");
               }}
               style={inputStyle(isFinal)}
             />
             <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>The adjusted value is the value that will be treated as the final appraiser-supported value in the report narrative.</div>
           </div>
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 10, background: "#f8fafc", fontSize: 12.5, lineHeight: 1.55, marginBottom: 10 }}>
-            <div><strong>External Source:</strong> {valuation.externalSource || "—"}</div>
-            <div><strong>External Address:</strong> {valuation.externalAddress || "—"}</div>
-            <div><strong>External Checked:</strong> {valuation.externalCheckedAt ? new Date(valuation.externalCheckedAt).toLocaleString() : "—"}</div>
-            <div><strong>External Status:</strong> {externalSummary(valuation)}</div>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 10 }}><div style={labelStyle}>Purpose of Appraisal</div><select value={reportData.valuationSummary.intendedUse ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.intendedUse", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="mortgage">Mortgage</option><option value="purchase">Purchase</option><option value="sale">Sale</option><option value="investment">Investment</option><option value="tax">Tax</option><option value="insurance">Insurance</option><option value="other">Other</option></select></div>
+          <div style={{ marginTop: 10 }}><div style={labelStyle}>Valuation Commentary</div><textarea placeholder="AI will generate or update this text after you click Generate AI Report." value={reportData.valuationSummary.valuationCommentary ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.valuationCommentary", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 115 }} /></div>
+          <div style={{ marginTop: 10 }}><div style={labelStyle}>Limiting Conditions</div><textarea placeholder="Assumptions / limiting conditions…" value={reportData.valuationSummary.limitingConditions ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.limitingConditions", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 75 }} /></div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
             <button onClick={calculateValuation} disabled={valuing || isFinal} style={{ ...btnBase, opacity: valuing || isFinal ? 0.6 : 1 }}>{valuing ? "Calculating…" : "Calculate Internal Value"}</button>
-            <button onClick={externalLookup} disabled={externalLoading || isFinal} style={{ ...btnBase, opacity: externalLoading || isFinal ? 0.6 : 1 }}>{externalLoading ? "Checking…" : "External Lookup"}</button>
             <button onClick={generateAiReport} disabled={aiLoading || isFinal} style={{ ...btnDark, opacity: aiLoading || isFinal ? 0.6 : 1 }}>{aiLoading ? "Generating…" : "Generate AI Report"}</button>
           </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Recommended flow: 1) Fill property data → 2) Calculate Internal Value → 3) External Lookup → 4) Generate AI Report.</div>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Recommended flow: 1) Fill property data and market conditions → 2) Calculate Internal Value → 3) Review/adjust Final Opinion of Value → 4) Generate AI Report.</div>
         </div>
 
         <div style={sectionCard}>
@@ -742,7 +781,7 @@ export default function ReportEditPage() {
         </div>
 
         <div style={sectionCard}>
-          <div style={{ fontWeight: 800, marginBottom: 8, fontSize: 13 }}>Share Links</div>
+          <div style={{ fontWeight: 800, marginBottom: 8, fontSize: 13 }}>Share Links / Status Area</div>
           {!isFinal && <div style={{ fontSize: 12.5, color: "#6b7280", marginBottom: 10 }}>Sharing is enabled only after the report is <strong>FINAL</strong>.</div>}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={createShareLink} disabled={shareLoading || !isFinal} style={{ ...btnBase, opacity: shareLoading || !isFinal ? 0.6 : 1 }}>{shareLoading ? "Working…" : "Create Link"}</button>
@@ -772,9 +811,9 @@ export default function ReportEditPage() {
 
       <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
         <div style={sectionCard}>
-          <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Basic Property Details</div>
+          <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Property Header</div>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8 }}>
-            <input placeholder="Address" value={address} disabled={isFinal} onChange={(e) => setAddress(e.target.value)} style={inputStyle(isFinal)} />
+            <input placeholder="Address" value={address} disabled={isFinal} onChange={(e) => setAddress(e.target.value)} style={{ ...inputStyle(isFinal), fontSize: 18, fontWeight: 800 }} />
             <input placeholder="City" value={city} disabled={isFinal} onChange={(e) => setCity(e.target.value)} style={inputStyle(isFinal)} />
             <input placeholder="State" value={stateUS} disabled={isFinal} onChange={(e) => setStateUS(e.target.value)} style={inputStyle(isFinal)} />
             <input placeholder="ZIP" value={zip} disabled={isFinal} onChange={(e) => setZip(e.target.value)} style={inputStyle(isFinal)} />
@@ -785,15 +824,15 @@ export default function ReportEditPage() {
             <input type="number" placeholder="Sqft" value={livingArea} disabled={isFinal} onChange={(e) => setLivingArea(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
             <input type="number" placeholder="Year Built" value={yearBuilt} disabled={isFinal} onChange={(e) => setYearBuilt(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyle(isFinal)} />
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <div><div style={labelStyle}>Property Type</div><select value={reportData.propertyDescription.propertyType ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.propertyType", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="single_family">Single Family</option><option value="condo">Condo</option><option value="townhouse">Townhouse</option><option value="multi_family">Multi-Family</option><option value="duplex">Duplex</option><option value="manufactured">Manufactured Home</option><option value="luxury">Luxury Residence</option><option value="other">Other</option></select></div>
+            <div><div style={labelStyle}>Condition</div><select value={reportData.propertyDescription.condition ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.condition", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="new">New / Like New</option><option value="excellent">Excellent</option><option value="very_good">Very Good</option><option value="good">Good</option><option value="average">Average</option><option value="fair">Fair</option><option value="needs_updates">Needs Updates</option><option value="poor">Poor</option><option value="renovated">Recently Renovated</option></select></div>
+          </div>
         </div>
 
         <div style={sectionCard}>
           <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Property Description</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div><div style={labelStyle}>Property Type</div><select value={reportData.propertyDescription.propertyType ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.propertyType", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="single_family">Single Family</option><option value="condo">Condo</option><option value="townhouse">Townhouse</option></select></div>
-            <div><div style={labelStyle}>Condition</div><input placeholder="Average / Good / Fair" value={reportData.propertyDescription.condition ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.condition", e.target.value)} style={inputStyle(isFinal)} /></div>
-          </div>
-          <div style={{ marginTop: 10 }}><div style={labelStyle}>Additional Improvements</div><textarea placeholder="Notes about improvements, renovations, upgrades…" value={reportData.propertyDescription.additionalImprovements ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.additionalImprovements", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 85 }} /></div>
+          <div><div style={labelStyle}>Additional Improvements</div><textarea placeholder="Notes about improvements, renovations, upgrades…" value={reportData.propertyDescription.additionalImprovements ?? ""} disabled={isFinal} onChange={(e) => updateReportData("propertyDescription.additionalImprovements", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 85 }} /></div>
         </div>
 
         <div style={sectionCard}>
@@ -804,39 +843,6 @@ export default function ReportEditPage() {
           </div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Neighborhood Description</div><textarea placeholder="Describe neighborhood, location influences, trends…" value={reportData.neighborhoodOverview.neighborhoodDescription ?? ""} disabled={isFinal} onChange={(e) => updateReportData("neighborhoodOverview.neighborhoodDescription", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 95 }} /></div>
           <div style={{ marginTop: 10 }}><div style={labelStyle}>Access to Services</div><textarea placeholder="Schools, transportation, shopping, amenities…" value={reportData.neighborhoodOverview.accessToServices ?? ""} disabled={isFinal} onChange={(e) => updateReportData("neighborhoodOverview.accessToServices", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 75 }} /></div>
-        </div>
-
-        <div style={sectionCard}>
-          <div style={{ fontWeight: 800, marginBottom: 12, fontSize: 13 }}>Valuation Summary</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 10 }}>
-            <div><div style={labelStyle}>Calculated Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Calculated Range</div><div>{valuation.estimatedLow ? `${money(valuation.estimatedLow)} - ${money(valuation.estimatedHigh)}` : "—"}</div></div>
-            <div><div style={labelStyle}>External Estimate</div><div style={{ fontWeight: 900 }}>{money(valuation.externalEstimate)}</div></div>
-            <div><div style={labelStyle}>Final Value Used</div><div style={{ fontWeight: 900 }}>{money(valuation.finalValue ?? valuation.adjustedValue ?? valuation.externalEstimate ?? valuation.estimatedValue)}</div></div>
-            <div><div style={labelStyle}>Source</div><div>{valuation.valueSource || (valuation.adjustedValue ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : valuation.estimatedValue ? "Internal Valuation" : "—")}</div></div>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={labelStyle}>Appraiser Adjusted Value (optional)</div>
-            <input
-              type="number"
-              placeholder="Enter final value if appraiser overrides the calculated estimate"
-              value={valuation.adjustedValue ?? ""}
-              disabled={isFinal}
-              onChange={(e) => {
-                const val = e.target.value === "" ? null : Number(e.target.value);
-                updateReportData("valuationSummary.adjustedValue", val);
-                updateReportData("valuationSummary.finalValue", val ?? valuation.externalEstimate ?? valuation.estimatedValue ?? null);
-                updateReportData("valuationSummary.valueSource", val ? "Appraiser Adjusted" : valuation.externalEstimate ? "External Lookup" : "Internal Valuation");
-              }}
-              style={inputStyle(isFinal)}
-            />
-            <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>The adjusted value is the value that will be treated as the final appraiser-supported value in the report narrative.</div>
-          </div>
-          <div><div style={labelStyle}>Intended Use</div><select value={reportData.valuationSummary.intendedUse ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.intendedUse", e.target.value || undefined)} style={inputStyle(isFinal)}><option value="">—</option><option value="mortgage">Mortgage</option><option value="legal">Legal</option><option value="internal">Internal</option></select></div>
-          <div style={{ marginTop: 10 }}><div style={labelStyle}>Valuation Commentary</div><textarea placeholder="Write your valuation narrative here…" value={reportData.valuationSummary.valuationCommentary ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.valuationCommentary", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 120 }} /></div>
-          <div style={{ marginTop: 10 }}><div style={labelStyle}>Limiting Conditions</div><textarea placeholder="Any limiting conditions / assumptions…" value={reportData.valuationSummary.limitingConditions ?? ""} disabled={isFinal} onChange={(e) => updateReportData("valuationSummary.limitingConditions", e.target.value)} style={{ ...inputStyle(isFinal), minHeight: 85 }} /></div>
-          {valuation.valuationMethod && <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}><strong>Internal Method:</strong> {valuation.valuationMethod}</div>}
-          {valuation.externalMessage && <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}><strong>External Message:</strong> {valuation.externalMessage}</div>}
         </div>
 
         <div style={sectionCard}>

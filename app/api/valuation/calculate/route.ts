@@ -41,9 +41,11 @@ function basePricePerSqft(state?: string, city?: string, zip?: string) {
   const z = normalizeText(zip);
 
   // City overrides first. These are broad MVP assumptions, not verified market data.
-  if (c.includes("beverly hills") || z === "90210" || z === "90211" || z === "90212") return 1650;
-  if (c.includes("malibu")) return 1700;
-  if (c.includes("santa monica")) return 1350;
+  if (c.includes("beverly hills") || z === "90210" || z === "90211" || z === "90212") return 2450;
+  if (c.includes("malibu") || z === "90265") return 2200;
+  if (c.includes("santa monica") || z === "90402") return 1700;
+  if (z === "90077" || z === "90049" || z === "90024" || z === "90272") return 1500;
+  if (z === "10013" || z === "10012" || z === "10011" || z === "10023") return 1550;
   if (c.includes("san francisco")) return 1200;
   if (c.includes("new york") || c.includes("manhattan")) return 720;
   if (c.includes("los angeles")) return 850;
@@ -163,7 +165,7 @@ export async function POST(req: Request) {
     const adjustedPsf = basePsf * condition.factor * age.factor * propertyType.factor * size.factor;
     const baseValue = sqft * adjustedPsf;
     const rawEstimate = baseValue + rooms.bedAdj + rooms.bathAdj;
-    const locationFloor = basePsf >= 1200 ? sqft * Math.max(basePsf * 0.92, 1400) : rawEstimate;
+    const locationFloor = basePsf >= 1200 ? sqft * Math.max(basePsf * 0.96, 1500) : rawEstimate;
     const estimate = roundToNearest(Math.max(rawEstimate, locationFloor), 1000);
     const pricePerSqft = Math.round(estimate / sqft);
     const confidenceScore = completenessScore(body, sqft);
@@ -192,7 +194,7 @@ export async function POST(req: Request) {
       "Professional internal valuation using location-based price-per-square-foot assumptions, property type, condition, age, size-efficiency and room-count adjustments. This is not an AVM and must be reconciled with verified comparable sales.";
 
     const suggestedNarrative =
-      `The internal valuation model indicates a preliminary value of $${estimate.toLocaleString()} with an indicated range of $${low.toLocaleString()} to $${high.toLocaleString()} ($${pricePerSqft}/sqft). The result reflects a base market assumption of $${basePsf}/sqft, adjusted for property type, size, age, condition, and room configuration. This indication should be used as a support tool only and reconciled against verified comparable sales before final reliance.`;
+      `The internal valuation model indicates a preliminary system value of $${estimate.toLocaleString()} ($${pricePerSqft}/sqft). The result reflects a base market assumption of $${basePsf}/sqft, adjusted for property type, size, age, condition, room configuration, and premium-market ZIP recognition where applicable. This indication is for internal support only and should be reconciled by the appraiser before the Final Opinion of Value is relied upon.`;
 
     return NextResponse.json({
       data: {
